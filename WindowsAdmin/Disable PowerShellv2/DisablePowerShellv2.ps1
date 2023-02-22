@@ -16,7 +16,7 @@
 .EXAMPLE
 	PS> powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -WindowsStyle Hidden ./DisablePowerShellv2.ps1
 .LINK
-	https://github.com/Brets0150/CG_Tools/
+	https://github.com/Brets0150/CG_Tools/blob/main/WindowsAdmin/Disable%20PowerShellv2/DisablePowerShellv2.ps1
 .NOTES
 	Author: Bret.s / License: MIT
     Version: 1.0.0
