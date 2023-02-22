@@ -42,7 +42,7 @@ switch -regex ($osVersion) {
         [string]$PSv2PreCheck = Get-WindowsOptionalFeature -Online -FeatureName $featureName | Select-String "State"
         if ($PSv2PreCheck -like "*Enabled*") {
             # If PowerShell v2 is enabled, disable it using the Disable-WindowsOptionalFeature cmdlet
-            Write-Host "PowerShell v2 appears to be enabled, disabling via dism..."
+            Write-Host "PowerShell v2 appears to be enabled, disabling..."
             Disable-WindowsOptionalFeature -Online -FeatureName $featureName -NoRestart
 
             # Check if PowerShell v2 is still enabled
