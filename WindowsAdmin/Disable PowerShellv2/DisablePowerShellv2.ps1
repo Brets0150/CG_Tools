@@ -12,7 +12,7 @@
         4. If PowerShell v2 is enabled, it disables the feature and logs whether the process was successful or not.
         5. If PowerShell v2 is already disabled, it logs a message indicating no changes will be made.
         6. Stops logging.
-    See my blog post for more details: https://cybergladius.com/2021/09/08/powershell-best-practices-for-preventing-abuse/#remove-powershell-v2
+    See my blog post for more details: https://cybergladius.com/powershell-best-practices-for-preventing-abuse/#remove-powershell-v2
 .EXAMPLE
 	PS> powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -WindowsStyle Hidden ./DisablePowerShellv2.ps1
 .LINK
