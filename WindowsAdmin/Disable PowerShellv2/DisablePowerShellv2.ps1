@@ -25,10 +25,17 @@
 # Start logging
 [string]$WindowsDir = $env:windir
 [string]$logPath = Join-Path $WindowsDir "Logs\DisablePSv2Log.txt"
+[string]$global:featureName = "MicrosoftWindowsPowerShellv2"
 Start-Transcript -Path $logPath -Append -NoClobber
 
 # Get the current OS version
 [string]$osVersion = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name ProductName).ProductName
+
+# A function that will Get the status of the PowerShell v2 feature installaion.
+function Get-PowerShellv2Status {
+    [object]$PSv2Status = Get-WindowsOptionalFeature -Online -FeatureName $global:featureName
+    return $PSv2Status
+}
 
 # Disable PowerShell v2 based off the OS version
 switch -regex ($osVersion) {
@@ -37,17 +44,14 @@ switch -regex ($osVersion) {
         Write-Host "Windows 10/Server 2012/16/19/22 detected."
         Write-Host "Checking if PowerShell v2 is currently enabled..."
 
-        # Check if PowerShell v2 is enabled
-        [string]$featureName = "MicrosoftWindowsPowerShellv2"
-        [string]$PSv2PreCheck = Get-WindowsOptionalFeature -Online -FeatureName $featureName | Select-String "State"
-        if ($PSv2PreCheck -like "*Enabled*") {
-            # If PowerShell v2 is enabled, disable it using the Disable-WindowsOptionalFeature cmdlet
+        if ((Get-PowerShellv2Status).State -eq "Enabled") {
+            # If PowerShell v2 is enabled, disable it.
             Write-Host "PowerShell v2 appears to be enabled, disabling..."
-            Disable-WindowsOptionalFeature -Online -FeatureName $featureName -NoRestart
+            # Using  Disable-WindowsOptionalFeature PowerShell command does not seem to work in a startup script, so using Dism instead.
+            Dism.exe /Online /Disable-Feature /FeatureName:$global:featureName
+            # Old Version:  Disable-WindowsOptionalFeature -Online -FeatureName $featureName -NoRestart
 
-            # Check if PowerShell v2 is still enabled
-            [string]$PSv2PostCheck = Get-WindowsOptionalFeature -Online -FeatureName $featureName | Select-String "State"
-            if ($PSv2PostCheck -like "*Enabled*") {
+            if ((Get-PowerShellv2Status).State-eq "Enabled") {
                 # If PowerShell v2 is still enabled, log an error
                 Write-Host "PowerShell v2 still seems to be enabled, check the log for errors: $logPath"
             } else {
