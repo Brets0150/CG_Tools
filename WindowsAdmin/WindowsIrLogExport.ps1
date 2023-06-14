@@ -71,28 +71,30 @@ function Write-FileHash {
 # A function that use "wevtutil.exe" to build a list of all logs enabled on the system and then returns the list.
 function Get-LogList {
     Write-Host "Building list of logs to export. This may take a minute..." -ForegroundColor Green
-    [array]$logList = wevtutil el
-    $logList = Remove-DisabledLogs -logList $logList
-    return $logList
+    [array]$LogList = wevtutil el
+    $LogList = Remove-DisabledLogs -logList $LogList
+    return $LogList
 }
 
 # Function to filter the list of logs and removes any logs that are not enabled on the system.
 function Remove-DisabledLogs {
     param (
         [Parameter(Mandatory=$true)]
-        [array]$logList
+        [array]$LogList
     )
-    # for each log in the list, run the "wevtutil gl" command and check if the log is enabled. If the log is not enabled, remove it from the list.
-    foreach ($log in $logList) {
-        $logStatus = wevtutil gl "$log" | Select-String "enabled: false"
-        # Remove carriage return and line feed characters from $logStatus.
-        $logStatus = $logStatus -replace "`r`n"
-        # Test if $logStatus is null or empty. If not, remove $log from $logList.
-        if ($logStatus) {
-            $logList = $logList -ne $log
+
+    # for each log in the list, try "wevtutil gl" command and check if the log is enabled. If the log is not enabled, or the command fails, remove it from the list.
+    foreach ($Log in $LogList) {
+        $LogStatus = wevtutil gl "$Log" 2>&1 | Select-String "enabled: false"
+        # Remove carriage return and line feed characters from $LogStatus.
+        $LogStatus = $LogStatus -replace "`r`n"
+        # Test if $LogStatus is null or empty. If not, remove $Log from $LogList.
+        if (($LogStatus) -or ($null -eq $LogStatus)) {
+            $LogList = $LogList -ne $Log
         }
     }
-    return $logList
+
+    return $LogList
 }
 
 # A function that will take a directory path of a folder to be zipped up and the name of the zip file to create. The function will then create the zip file. Ask the user where to save the zip file.
@@ -252,12 +254,12 @@ function Export-Log {
 # A function than asks the if they want to export all the logs or just a specific log. If they want to export all the logs, call the Get-LogList function to get a list of all the logs.
 # Ask the user for the directory to export the logs to. Then call the Export-Log function for each log in the list.
 function Export-AllLogs {
-    $logList = Get-LogList
+    $LogList = Get-LogList
     $ExportDirectory = Get-ExportDirectory
-    foreach ($log in $logList) {
-        Export-Log -LogName "$log" -ExportDirectory "$ExportDirectory"
+    foreach ($Log in $LogList) {
+        Export-Log -LogName "$Log" -ExportDirectory "$ExportDirectory"
         # After the single log export completes, tell the user the export is complete.
-        Write-Host "Export of $log complete" -ForegroundColor Green
+        Write-Host "Export of $Log complete" -ForegroundColor Green
     }
     # Tell the user all logs have been exported.
     Write-Host "All logs have been exported." -ForegroundColor Green
@@ -274,17 +276,17 @@ function Export-AllLogs {
 function Export-CommonLogs {
     # Tell the user the logs that will be exported.
     Write-Host "The following logs will be exported if they are enabled." -ForegroundColor Green
-    foreach ($log in $global:commonlogList) {
-        Write-Host " --> $log" -ForegroundColor Green
+    foreach ($Log in $global:commonlogList) {
+        Write-Host " --> $Log" -ForegroundColor Green
     }
     $ExportDirectory = Get-ExportDirectory
     # Filter the "$global:commonlogList" for logs that are disabled.
     [array]$LogList = Remove-DisabledLogs -logList $global:commonlogList
     # Export the logs to the directory.
-    foreach ($log in $LogList) {
-        Export-Log -LogName $log -ExportDirectory $ExportDirectory
+    foreach ($Log in $LogList) {
+        Export-Log -LogName $Log -ExportDirectory $ExportDirectory
         # After the single log export completes, tell the user the export is complete.
-        Write-Host "Export of $log complete" -ForegroundColor Green
+        Write-Host "Export of $Log complete" -ForegroundColor Green
     }
     # Tell the user all logs have been exported.
     Write-Host "All logs have been exported." -ForegroundColor Green
@@ -300,34 +302,34 @@ function Export-CommonLogs {
 # A function that exports one specific log file that the user chooses.
 function Export-SpecificLog {
     # Create a dictonary with a unique number for each log name discovered with Get-LogList.
-    $logList = Get-LogList
-    $logListDict = @{}
+    $LogList = Get-LogList
+    $LogListDict = @{}
     $i = 1
-    foreach ($log in $logList) {
-        $logListDict.Add($i,$log)
+    foreach ($Log in $LogList) {
+        $LogListDict.Add($i,$Log)
         $i++
     }
-    # Use the $loglistDict to create a list of log names and numbers for the user to choose from.
+    # Use the $LoglistDict to create a list of log names and numbers for the user to choose from.
     Write-Host "The following logs are available to export" -ForegroundColor Yellow
-    foreach ($key in $logListDict.Keys) {
-        Write-Host "$key. $($logListDict[$key])" -ForegroundColor Green
+    foreach ($key in $LogListDict.Keys) {
+        Write-Host "$key. $($LogListDict[$key])" -ForegroundColor Green
     }
     # Ask the user to choose a log to export.
-    [int]$logNumber = Read-Host "Enter the number of the log to export"
+    [int]$LogNumber = Read-Host "Enter the number of the log to export"
     # If the user enters a number that is not in the list, tell the and restart the function.
-    if ($logNumber -gt $logListDict.Count) {
+    if ($LogNumber -gt $LogListDict.Count) {
         Write-Host "The number you entered is not in the list. Please try again." -ForegroundColor Red
         Export-SpecificLog
     }
     # Repeat back to the user the log they chose.
-    Write-Host "You chose $($logListDict[$logNumber])" -ForegroundColor Green
+    Write-Host "You chose $($LogListDict[$LogNumber])" -ForegroundColor Green
     # Tell the they will need to choose a directory to export the log to.
     Write-Host "You will now be asked to choose a directory to export the log to." -ForegroundColor Yellow
     $ExportDirectory = Get-ExportDirectory
     # Repeat back to the user the directory they chose.
     Write-Host "You chose $ExportDirectory" -ForegroundColor Green
     # Export the log to the directory.
-    Export-Log -LogName $($logListDict[$logNumber]) -ExportDirectory $ExportDirectory
+    Export-Log -LogName $($LogListDict[$LogNumber]) -ExportDirectory $ExportDirectory
     # Tell the user all logs have been exported.
     Write-Host "All logs have been exported." -ForegroundColor Green
     # Get todays Date and time.
