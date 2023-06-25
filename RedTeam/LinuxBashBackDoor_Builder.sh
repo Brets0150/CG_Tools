@@ -64,6 +64,8 @@ obfBdSlim() {
 }
 
 
-# Call the encrypt function with the provided command line argument
+# Run the obfBd function with the payload and the XOR key as arguments.
 obfBd "${1}" "${2}"
-# obfBdSlim "${1}" "${2}"
+
+# Run the obfBdSlim function with the payload and the XOR key as arguments.
+obfBdSlim "${1}" "${2}"

