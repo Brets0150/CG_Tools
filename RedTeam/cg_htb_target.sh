@@ -54,8 +54,15 @@ fun_scanAllPorts(){
     nmap -Pn -${nmapSpeed} -p- --open -oA "./${outFileFullScan}" ${targetIP}
 }
 
-fun_scanPortsDetails(){
-    tmp_ipList="${outFileFullScan}.gnmap"
+fun_scanPortDetails(){
+    tmp_ipList="${1}"
+    time=$(date +%s)
+    # confirm file exists, is not empty, has the extention '.gnmap'.
+    if [ ! -s "${tmp_ipList}" ] || [ "${tmp_ipList##*.}" != 'gnmap' ]; then
+        echo "File does not exist or is empty or is not a .gnmap file."
+        exit 1
+    fi
+
     declare -a ary_linesOfFile ary_tmp_openPort
     readarray -t ary_linesOfFile <<<"""$(grep 'Ports:' "./${tmp_ipList}" |grep -i open)"""
     for str_tmp_line in "${ary_linesOfFile[@]}";do
@@ -70,13 +77,13 @@ fun_scanPortsDetails(){
         done
         str_openPort="${str_nmapPortList:0:-1}"
         #
-        nmap -Pn -p "${str_openPort}" -oA "./${str_hostIP}_detail-port-scan" -sCV -A -T3 "${str_hostIP}"
+        nmap -Pn -p "${str_openPort}" -oA "./${str_hostIP}_detail-port-scan_${time}" -sCV -A -T3 "${str_hostIP}"
     done
-
 }
 
 
 fun_quickPortScan
+fun_scanPortDetails "${outFileQuickScan}.gnmap"
 fun_scanAllPorts
-fun_scanPortsDetails
+fun_scanPortDetails "${outFileFullScan}.gnmap"
 exit 0
