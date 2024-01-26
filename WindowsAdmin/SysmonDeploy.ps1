@@ -124,29 +124,7 @@ function Install-SysmonDnsConfig() {
 
 }
 
-# Function to check if Sysymon is installed and running, if it is not, install it. If it is installed and not running, start it.
-function Start-Sysmon() {
-	Write-Host "Checking if Sysmon is installed and running..."
 
-	# Check if Sysmon is installed.
-	if (!(Test-Path $global:SysmonExe)) {
-		Write-Host "Sysmon is not installed."
-		Install-Sysmon
-	}
-
-	# Check if Sysmon is running.
-	if (!(Get-Process -Name "$global:SysmonProcessName" -ErrorAction SilentlyContinue)) {
-		Write-Host "Sysmon is not running."
-		Start-Process -FilePath "$global:SysmonExe" -ArgumentList " $global:SysmonConfig" -Wait -NoNewWindow
-	}
-
-	# Confirm that Sysmon is running.
-	if (!(Get-Process -Name "$global:SysmonProcessName" -ErrorAction SilentlyContinue)) {
-		Write-Host "Sysmon failed to start."
-		Exit 1
-	}
-	Write-Host "Sysmon is running."
-}
 
 # A function that take a variable, asks the user if the variable is correct, if the user enters 'n', then return $false, if the user enters 'y', then return $true.
 # If the user enters anything other than 'y' or 'n', then ask them to enter 'y' or 'n'.
