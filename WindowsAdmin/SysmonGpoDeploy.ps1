@@ -14,6 +14,9 @@
 	https://github.com/Brets0150/CG_BlueTeamTools/blob/main/SysmonGpoLogging.ps1
 .NOTES
 	Author: Bret.s / License: MIT - Last Updated: 2024-1-25
+	---Updates---
+	2024-1-25 - Initial creation of the script.
+	2024-9-5 - Added debugging messages to the script. Added a reinstall of Sysmon if the service fails to start, but the executable is found.
 #>
 
 #====================================================================================================================
@@ -25,7 +28,8 @@
 [string]$global:SysmonExe_Temp = "$global:Sysmon_TempDir" + "$global:SysmonExeFileName"
 [string]$global:SysmonConfig = "C:\Windows\" + "sysmon-config.xml"
 [string]$global:SysmonExe = "C:\Windows\" + "$global:SysmonExeFileName"
-
+[bool]$global:debug = $true
+#====================================================================================================================
 function Get-SysmonVersion {
 	<#
 	.SYNOPSIS
@@ -98,7 +102,7 @@ function Get-NetworkStatus {
 	[string]$IpAddress = "8.8.8.8"
 	try {
 		# Test if an internet address can be pinged.
-		$PingTest = Test-Connection -ComputerName $IpAddress -Count 1 -Quiet -ErrorAction SilentlyContinue
+		$PingTest = Test-Connection -ComputerName $IpAddress -Count 3 -Quiet -ErrorAction SilentlyContinue
 		# If ping good, test DNS
 		if ($PingTest) {
 			# Test if a domain name can be resolved.
@@ -161,8 +165,13 @@ Function Get-SysmonUpdateRequired {
 
 	# Get the current version of the Sysmon.
 	[float]$SysmonCurrentVersion = Get-SysmonVersion
+
+	if ($global:debug) {Write-Host "Installed Sysmon Version: $SysmonCurrentVersion" -ForegroundColor Yellow }
+
 	# Get the latest version of the Sysmon.
 	[float]$SysmonLatestVersion = Get-SysmonLatestReleaseVersion
+
+	if ($global:debug) {Write-Host "Available Sysmon Version: $SysmonLatestVersion" -ForegroundColor Yellow }
 
 	# Compare the current version of the Sysmon to the latest version of the Sysmon.
 	if ($SysmonCurrentVersion -lt $SysmonLatestVersion) {
@@ -371,6 +380,12 @@ Function Start-SysmonService {
 	# Get the Sysmon service name.
 	$SysmonServiceName = (Get-Service | Where-Object {$_.DisplayName -like "*Sysmon*"}).Name
 
+	# If $SysmonServiceName is null or empty, return false.
+	if ([string]::IsNullOrEmpty($SysmonServiceName)) {
+		if ($global:debug) {Write-Host "The Sysmon service test came back null or empty. AKA: Service not found. Sysmon service needs to be installed."  -ForegroundColor Yellow}
+		return $false
+	}
+
 	try {
 		# Start the service if it is NOT running
 		if ($(Get-Service -Name $SysmonServiceName -ErrorAction SilentlyContinue).Status -ne 'Running') {
@@ -456,20 +471,28 @@ Function Initialize-DeploySysmon {
 
 		# Sysmon is not running, check if it is installed.
 		if (!(Test-Path $global:SysmonExe)) {
+
+			# If debug is enabled, write output to the console.
+			if ($global:debug) {Write-Host "Sysmon is not installed, installing Sysmon. TestPath: $global:SysmonExe" -ForegroundColor Yellow}
+
 			# Sysmon is not installed, install it.
 			# Try to run the Sysmon installer and throw an error if it returns false.
 			if (!(Install-Sysmon)) {
 				throw "Error installing Sysmon."
 				Exit 1
 			}
+		}
 
-		} elseif (Test-Path $global:SysmonExe) {
+		if (Test-Path $global:SysmonExe) {
+
+			if ($global:debug) {Write-Host "Sysmon IS found. TestPath: $global:SysmonExe" -ForegroundColor Yellow }
 
 			# Sysmon is installed, Check if the Sysmon is the latest version, if it is not, update it.
 			[bool]$SysmonUpdateRequired = Get-SysmonUpdateRequired # Adding as a variable to reduce the number of web requests.
 
 			# Check if the Sysmon is the latest version, if it is not, update it.
 			if ($SysmonUpdateRequired) {
+				if ($global:debug) {Write-Host "A Sysmon Update is required." -ForegroundColor Yellow }
 				# Remove the Sysmon.
 				# Try to run the Sysmon removal and throw an error if it returns false.
 				if (!(Remove-Sysmon)) {
@@ -487,8 +510,17 @@ Function Initialize-DeploySysmon {
 			# Sysmon is the latest version, start it.
 			# Try to run the Sysmon installer and throw an error if it returns false.
 			if (!(Start-SysmonService)) {
-				throw "Error starting Sysmon service."
-				Exit 1
+				if ($global:debug) {Write-Host "Failed to start Sysmon service, trying reinstall." -ForegroundColor Yellow }
+
+				if (!(Install-Sysmon)) {
+					throw "Error installing Sysmon."
+					Exit 1
+				}
+
+				if (!(Start-SysmonService)) {
+					throw "Error reinstalling Sysmon and starting the service failed."
+					Exit 1
+				}
 			}
 			# Sysmon is running, & latest version, return true.
 			return $true
@@ -531,12 +563,12 @@ Function Initialize-DeploySysmon {
 
 # Try to create the event log, if it already exists, do nothing.
 try {
-	(New-EventLog -LogName Application -Source "SysmonGpoDeploy" -ErrorAction SilentlyContinue) | Out-Null
+	(New-EventLog -LogName Application -Source "SysmonDeploy" -ErrorAction SilentlyContinue) | Out-Null
 }
 catch {
 	# Do nothing. The event log already exists.
 }
 # Run the Initialize-DeploySysmon function and write the result to the event log.
-Write-EventLog -LogName Application -Source "SysmonGpoDeploy" -EntryType Information -EventId 1 -Message $(Initialize-DeploySysmon)
+Write-EventLog -LogName Application -Source "SysmonGpoDeploy" -EntryType Information -EventId 1 -Message $(Initialize-DeploySysmon) -ErrorAction SilentlyContinue
 # Exit with error code 0.
 Exit 0

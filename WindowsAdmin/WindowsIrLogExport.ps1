@@ -179,11 +179,31 @@ function Get-ZipFileDirectory {
 
 # A function that will open a popup folder browser dialog box and return the path selected by the user.
 function Get-ExportDirectory {
-    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null
-    $FolderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-    $FolderBrowser.Description = "Select the directory to export the logs to"
-    $FolderBrowser.ShowDialog() | Out-Null
-    $ExportDirectory = $FolderBrowser.SelectedPath
+
+    # Try to use the "System.windows.forms" assembly to open a folder browser dialog box. If it fails, ask the user to enter a directory path.
+    try {
+        [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null
+        $FolderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $FolderBrowser.Description = "Select the directory to export the logs to"
+        $FolderBrowser.ShowDialog() | Out-Null
+        $ExportDirectory = $FolderBrowser.SelectedPath
+        # Check if the user selected a directory and the directory already exists. If not, exit the script.
+        if (Test-Path $ExportDirectory) {
+            return $ExportDirectory
+        }
+        Write-Host "No directory was selected. Exiting script." -ForegroundColor Red
+        exit 1
+    }
+    catch {
+        Write-Host "The folder browser dialog box is not available. Please enter the directory path." -ForegroundColor Yellow
+        [string]$ExportDirectory = Read-Host "Enter the directory path to export the logs to"
+        # Check if the directory entered exists. If not, ask the user to enter a valid directory.
+        if (Test-Path $ExportDirectory) {
+            return $ExportDirectory
+        }
+        Write-Host "The directory $ExportDirectory does not exist. Exiting script." -ForegroundColor Red
+        exit 1
+    }
     # Check if the user selected a directory and the directory already exists. If not, exit the script.
     if (Test-Path $ExportDirectory) {
         return $ExportDirectory
