@@ -9,6 +9,7 @@ outFile_Name="mscan__${tstamp}__.grep.txt"
 ip_w_ssh_file="./ip_w-sh__${tstamp}__.txt"
 nmap_out_file="./nmap__${tstamp}__.grep.txt"
 vuln_list="./vuln_ssh__${tstamp}__.txt"
+scan_log="./scan_log__${tstamp}__.txt"
 ip_list=false
 
 # Check if masscan and nmap are installed.
@@ -28,6 +29,9 @@ if [ -z "$1" ]; then
     echo "Usage: $0 <IP|IP range|file with IPs>"
     exit 1
 fi
+
+# Check if the flag '-v' was provided. If so, set verbose to true.
+
 
 # Check if the provided argument is a file.
 if [ -f "$1" ]; then
@@ -76,7 +80,7 @@ grep 'Ports: 22/open/tcp' "${nmap_out_file}" | while IFS= read -r line; do
         else
             status="Invalid version format: $version"
         fi
-        echo -e "${tmp_ip}: ${status}"
+        echo -e "${tmp_ip}: ${status}" | tee -a "${scan_log}"
     fi
 done
 
