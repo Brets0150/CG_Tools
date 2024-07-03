@@ -70,12 +70,12 @@ grep 'Ports: 22/open/tcp' "${nmap_out_file}" | while IFS= read -r line; do
                 status="\e[31m$version is vulnerable (older than 4.4p1)\e[0m"
                 echo "${tmp_ip}" >> "${vuln_list}"
 
-            elif (( major == 8 && minor > 5 )) || (( major == 9 && minor < 8 )); then
-                status="\e[31m$version is vulnerable (between 8.6p1 and 9.7p1)\e[0m"
+            elif (( major == 8 && minor >= 5 )) || (( major == 9 && minor < 8 )); then
+                status="\e[31m$version is vulnerable (between 8.5p1 and 9.7p1)\e[0m"
                 echo "${tmp_ip}" >> "${vuln_list}"
 
             else
-                status="$version is NOT vulnerable (4.4p1 to 8.5p1)"
+                status="$version is NOT vulnerable (4.4p1 to 8.4p1)"
             fi
         else
             status="Invalid version format: $version"
